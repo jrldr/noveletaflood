@@ -6,6 +6,7 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
+    base: './',
     plugins: [
       react(),
       tailwindcss(),
@@ -19,7 +20,7 @@ export default defineConfig(() => {
           'images/river_floodgate_station.jpg',
         ],
         manifest: {
-          id: '/',
+          id: './',
           name: 'Noveleta FloodWatch',
           short_name: 'FloodWatch',
           description: 'Real-time weather, compound flood risk modeling, and coastal surge monitoring for Noveleta, Cavite.',
@@ -27,23 +28,23 @@ export default defineConfig(() => {
           background_color: '#020617',
           display: 'standalone',
           orientation: 'portrait-primary',
-          start_url: '/',
-          scope: '/',
+          start_url: './',
+          scope: './',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: 'pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
