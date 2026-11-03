@@ -1,0 +1,6 @@
+{
+  "name": "Noveleta FloodWatch - Hydrologic & Coastal Surge Predictor",
+  "description": "Real-time weather, compound flood risk modeling, upland Cavite watershed runoff, soil saturation markers, and Manila Bay coastal surge monitoring for Noveleta, Cavite.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
