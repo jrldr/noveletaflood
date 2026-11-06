@@ -106,65 +106,76 @@ export const BarangayInundationMatrix: React.FC<BarangayInundationMatrixProps> =
 
           <div className="relative aspect-[4/3] w-full bg-slate-900/60 rounded-lg border border-slate-800/80 overflow-hidden flex items-center justify-center select-none">
             <svg viewBox="0 0 400 300" className="w-full h-full touch-manipulation">
-              {/* Manila Bay / Coastline */}
+              {/* Manila Bay / Bacoor Bay (North / Top boundary) */}
               <path
-                d="M 0,0 L 400,0 L 400,80 Q 280,70 200,90 T 50,110 L 0,110 Z"
+                d="M 0,0 L 400,0 L 400,90 Q 250,70 150,85 T 0,75 Z"
                 fill="#0f2b48"
-                opacity="0.6"
+                opacity="0.75"
               />
-              <text x="16" y="32" fill="#38bdf8" fontSize="11" fontFamily="monospace" fontWeight="bold">
-                MANILA BAY / BACOOR BAY
+              <text x="16" y="24" fill="#38bdf8" fontSize="10" fontFamily="monospace" fontWeight="bold">
+                MANILA BAY / BACOOR BAY (NORTH)
               </text>
-              <text x="16" y="48" fill="#94a3b8" fontSize="8.5" fontFamily="monospace">
-                Coastal Surge Vector →
+              <text x="16" y="38" fill="#94a3b8" fontSize="8" fontFamily="monospace">
+                ← Coastal Surge & Tidal Outfall
               </text>
 
-              {/* Ylang-Ylang River Channel */}
+              {/* Neighboring Boundaries Labels */}
+              <text x="310" y="140" fill="#64748b" fontSize="7.5" fontFamily="monospace">
+                (TO KAWIT / EAST)
+              </text>
+              <text x="20" y="280" fill="#64748b" fontSize="7.5" fontFamily="monospace">
+                (TO ROSARIO / WEST)
+              </text>
+              <text x="310" y="285" fill="#64748b" fontSize="7.5" fontFamily="monospace">
+                (TO GEN. TRIAS / SOUTH)
+              </text>
+
+              {/* Ylang-Ylang & San Juan River Delta Channel flowing from SE upland to NW bay outfall */}
               <path
-                d="M 360,300 Q 310,240 260,220 T 200,160 Q 150,120 120,95 L 110,85"
+                d="M 350,280 Q 280,220 220,180 T 130,110 L 110,80"
                 fill="none"
                 stroke="#0284c7"
-                strokeWidth="14"
+                strokeWidth="12"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity="0.85"
+                opacity="0.8"
               />
               <path
-                d="M 360,300 Q 310,240 260,220 T 200,160 Q 150,120 120,95 L 110,85"
+                d="M 350,280 Q 280,220 220,180 T 130,110 L 110,80"
                 fill="none"
                 stroke="#38bdf8"
-                strokeWidth="3"
-                strokeDasharray="6 4"
+                strokeWidth="2.5"
+                strokeDasharray="5 3"
               />
-              <text x="210" y="280" fill="#38bdf8" fontSize="8.5" fontFamily="monospace">
-                ← Upland Inflow (from Tagaytay/Silang)
+              <text x="240" y="240" fill="#38bdf8" fontSize="8" fontFamily="monospace">
+                Ylang-Ylang River Basin →
               </text>
 
-              {/* Floodgate outfall marker */}
-              <circle cx="110" cy="85" r="7" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.5" />
-              <text x="122" y="88" fill="#ffffff" fontSize="9" fontFamily="monospace" fontWeight="bold">
+              {/* Floodgate outfall marker at estuary */}
+              <circle cx="110" cy="80" r="6" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.5" />
+              <text x="122" y="83" fill="#ffffff" fontSize="8.5" fontFamily="monospace" fontWeight="bold">
                 Floodgates
               </text>
 
-              {/* Barangay Node Markers with enlarged touch targets */}
+              {/* Geographically accurate Barangay Node Markers */}
               {barangays.map((b, i) => {
                 const pos = [
-                  { x: 105, y: 130 }, // San Rafael I
-                  { x: 145, y: 140 }, // San Rafael II
-                  { x: 180, y: 165 }, // San Rafael III
-                  { x: 155, y: 185 }, // San Rafael IV
-                  { x: 65, y: 125 },  // Santa Rosa I
-                  { x: 50, y: 155 },  // Santa Rosa II
-                  { x: 140, y: 220 }, // Poblacion
-                  { x: 80, y: 195 },  // San Antonio I
-                  { x: 60, y: 225 },  // San Antonio II
-                  { x: 230, y: 200 }, // San Juan I
-                  { x: 260, y: 225 }, // San Juan II
-                  { x: 195, y: 250 }, // Magdiwang
-                  { x: 130, y: 265 }, // Salcedo I
-                  { x: 165, y: 275 }, // Salcedo II
-                  { x: 290, y: 255 }, // San Jose I
-                  { x: 330, y: 265 }, // San Jose II
+                  { x: 125, y: 110 }, // San Rafael I (Riverine upstream from estuary)
+                  { x: 145, y: 125 }, // San Rafael II
+                  { x: 170, y: 145 }, // San Rafael III
+                  { x: 155, y: 165 }, // San Rafael IV
+                  { x: 70,  y: 85  }, // Santa Rosa I (Coastal)
+                  { x: 55,  y: 110 }, // Santa Rosa II (Coastal)
+                  { x: 195, y: 190 }, // Poblacion (Town Center)
+                  { x: 80,  y: 145 }, // San Antonio I (Coastal/Estuary)
+                  { x: 65,  y: 175 }, // San Antonio II (Coastal/Estuary)
+                  { x: 230, y: 170 }, // San Juan I (Riverine)
+                  { x: 265, y: 195 }, // San Juan II (Riverine)
+                  { x: 215, y: 225 }, // Magdiwang (Inland Lowland)
+                  { x: 145, y: 235 }, // Salcedo I (Inland Lowland)
+                  { x: 175, y: 255 }, // Salcedo II (Inland Lowland)
+                  { x: 280, y: 235 }, // San Jose I (Slight Upland South)
+                  { x: 320, y: 250 }, // San Jose II (Slight Upland South)
                 ][i] || { x: 200, y: 200 };
 
                 const isSelected = selectedBarangay?.id === b.id;
@@ -186,13 +197,13 @@ export const BarangayInundationMatrix: React.FC<BarangayInundationMatrixProps> =
                     className="cursor-pointer"
                     onClick={() => setSelectedBarangay(b)}
                   >
-                    {/* Invisible expanded touch hitbox (40px) */}
+                    {/* Expanded touch target */}
                     <circle cx={pos.x} cy={pos.y} r="20" fill="transparent" />
 
                     <circle
                       cx={pos.x}
                       cy={pos.y}
-                      r={isSelected ? 11 : 8}
+                      r={isSelected ? 10 : 7.5}
                       fill={nodeColor}
                       stroke={isSelected ? '#ffffff' : '#0f172a'}
                       strokeWidth={isSelected ? 2.5 : 1.5}
@@ -200,10 +211,10 @@ export const BarangayInundationMatrix: React.FC<BarangayInundationMatrixProps> =
                     />
                     <text
                       x={pos.x}
-                      y={pos.y - 11}
+                      y={pos.y - 10}
                       textAnchor="middle"
                       fill={isSelected ? '#ffffff' : '#cbd5e1'}
-                      fontSize="8"
+                      fontSize="7.5"
                       fontFamily="monospace"
                       fontWeight={isSelected ? 'bold' : 'normal'}
                     >
