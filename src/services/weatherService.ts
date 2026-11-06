@@ -499,7 +499,7 @@ export function calculateCompoundRiskScore({
   };
 }
 
-// Fetch live weather data from Open-Meteo for Noveleta & Upland Cavite
+// Fetch live weather & marine data from Open-Meteo for Noveleta & Upland Cavite
 export async function fetchLiveWeatherData(simulation?: SimulationParams): Promise<{
   currentWeather: WeatherCurrent;
   hourlyForecast: HourlyForecastPoint[];
@@ -510,57 +510,36 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
   historicalBenchmarks: HistoricalBenchmark[];
   barangayStatuses: BarangayFloodStatus[];
 }> {
-  // Parallel fetch for Noveleta and Upland Ridge (3-day horizon for rolling 24-hour window from any hour)
+  // Parallel fetch for Noveleta local weather, Upland Tagaytay/Silang basin, and Manila Bay marine tide/waves
   const noveletaUrl = `https://api.open-meteo.com/v1/forecast?latitude=${NOVELETA_LAT}&longitude=${NOVELETA_LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&hourly=temperature_2m,precipitation_probability,precipitation,surface_pressure,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm&daily=precipitation_sum&timezone=Asia%2FManila&forecast_days=3`;
   const uplandUrl = `https://api.open-meteo.com/v1/forecast?latitude=${UPLAND_LAT}&longitude=${UPLAND_LON}&current=temperature_2m,precipitation,rain,surface_pressure&hourly=precipitation,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm&timezone=Asia%2FManila&forecast_days=3`;
+  const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=14.45&longitude=120.88&hourly=sea_level_height_msl,wave_height,ocean_current_velocity&timezone=Asia%2FManila&forecast_days=3`;
 
   let noveletaJson: any;
   let uplandJson: any;
+  let marineJson: any = null;
 
   try {
-    const [resNov, resUp] = await Promise.all([fetch(noveletaUrl), fetch(uplandUrl)]);
-    if (!resNov.ok || !resUp.ok) throw new Error('Failed to fetch from Open-Meteo');
+    const [resNov, resUp, resMar] = await Promise.all([
+      fetch(noveletaUrl),
+      fetch(uplandUrl),
+      fetch(marineUrl).catch(() => null),
+    ]);
+
+    if (!resNov.ok || !resUp.ok) {
+      throw new Error(`Open-Meteo Weather API HTTP status error (Noveleta: ${resNov.status}, Upland: ${resUp.status})`);
+    }
+
     noveletaJson = await resNov.json();
     uplandJson = await resUp.json();
-  } catch (err) {
-    console.warn('Network error fetching Open-Meteo, using robust fallback telemetry', err);
-    // Provide realistic fallback if offline/rate-limited
-    const baseEpoch = Date.now() - 12 * 3600000;
-    noveletaJson = {
-      current: {
-        time: new Date().toISOString(),
-        temperature_2m: 29.4,
-        apparent_temperature: 33.5,
-        relative_humidity_2m: 82,
-        precipitation: 1.2,
-        rain: 1.2,
-        weather_code: 61,
-        surface_pressure: 1010.5,
-        wind_speed_10m: 14.5,
-        wind_direction_10m: 235,
-        wind_gusts_10m: 22.0,
-        is_day: 1,
-      },
-      hourly: {
-        time: Array.from({ length: 72 }, (_, i) => new Date(baseEpoch + i * 3600000).toISOString()),
-        temperature_2m: Array(72).fill(28.5),
-        precipitation: Array(72).fill(1.5),
-        precipitation_probability: Array(72).fill(45),
-        surface_pressure: Array(72).fill(1010),
-        soil_moisture_0_to_1cm: Array(72).fill(0.38),
-        soil_moisture_1_to_3cm: Array(72).fill(0.40),
-        soil_moisture_3_to_9cm: Array(72).fill(0.42),
-      },
-    };
-    uplandJson = {
-      current: {
-        precipitation: 3.5,
-        rain: 3.5,
-      },
-      hourly: {
-        precipitation: Array(72).fill(4.0),
-      },
-    };
+    if (resMar && resMar.ok) {
+      marineJson = await resMar.json();
+    }
+  } catch (err: any) {
+    console.error('Error fetching live Open-Meteo telemetry:', err);
+    throw new Error(
+      `Unable to fetch live meteorological or marine data from Open-Meteo services (${err?.message || 'Network Timeout'}). Please check your internet connection and retry.`
+    );
   }
 
   // Parse current weather
@@ -593,9 +572,49 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
     time: cur.time || new Date().toISOString(),
   };
 
-  // Tides & Coastal Surge (Calibrated to Manila Bay / Sangley Point Cavite)
+  // Find current hour index in times array for Asia/Manila (Philippine Standard Time)
+  const hData = noveletaJson.hourly || {};
+  const times = hData.time || [];
   const now = new Date();
+  let currentHourIdx = 0;
+  if (times.length > 0) {
+    const curHourStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(now).replace(', ', 'T');
+
+    const foundIdx = times.findIndex((t: string) => t.startsWith(curHourStr));
+    if (foundIdx !== -1) {
+      currentHourIdx = foundIdx;
+    } else {
+      const nowMs = now.getTime();
+      let minDiff = Infinity;
+      times.forEach((t: string, idx: number) => {
+        const ms = new Date(t.includes('+') || t.endsWith('Z') ? t : `${t}:00+08:00`).getTime();
+        const diff = Math.abs(ms - nowMs);
+        if (diff < minDiff) {
+          minDiff = diff;
+          currentHourIdx = idx;
+        }
+      });
+    }
+  }
+
+  // Tides & Coastal Surge Calculation
+  // 1. Astronomical Harmonics calibrated to NAMRIA Station 920 (Sangley Point / Manila Bay)
   const currentTideHarmonics = calculateAstronomicalTide(now);
+
+  // 2. Real-time Open-Meteo Marine API hydrodynamic sea level height (if available)
+  let marineMsl: number | null = null;
+  if (marineJson?.hourly?.sea_level_height_msl?.[currentHourIdx] !== undefined) {
+    marineMsl = marineJson.hourly.sea_level_height_msl[currentHourIdx];
+  }
+
+  // Coastal storm surge (barometric suction + quadratic wind shear against West-Southwest Manila Bay facing outfall)
   const surge = calculateCoastalSurge(curWindSpeed, curWindDir, curPressure);
   let totalSurge = surge.totalSurge;
 
@@ -603,10 +622,12 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
     totalSurge += simulation.tideSurgeOffsetMeters;
   }
 
-  // Primary datum: MLLW (Mean Lower Low Water - NAMRIA Chart Datum)
-  // Secondary datum: MSL (Mean Sea Level = MLLW - 0.72m)
-  const currentTideMllw = currentTideHarmonics.tideMllw;
-  const currentTideMsl = currentTideHarmonics.tideMsl;
+  // Primary datum: MLLW (Mean Lower Low Water - NAMRIA Chart Datum 0.00m used by TidesChart & PAGASA)
+  // Local Mean Sea Level (MSL) = 0.72m above MLLW in Manila Bay
+  // If real-time Open-Meteo Marine API sea level height is available, combine with astronomical tide for maximum accuracy
+  const effectiveMsl = marineMsl !== null ? marineMsl : currentTideHarmonics.tideMsl;
+  const currentTideMllw = Number((effectiveMsl + 0.72).toFixed(2));
+  const currentTideMsl = Number(effectiveMsl.toFixed(2));
   const totalWaterLevelMllw = Number((currentTideMllw + totalSurge).toFixed(2));
   const totalWaterLevelMsl = Number((currentTideMsl + totalSurge).toFixed(2));
 
@@ -626,20 +647,30 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
   for (let m = 0; m < 24 * 60; m += 1) {
     const t = new Date(startOfDayPst.getTime() + m * 60 * 1000);
     const tide = calculateAstronomicalTide(t);
-    if (tide.rawMllw > todayHighTideRec.raw) {
-      todayHighTideRec = { date: t, height: tide.tideMllw, raw: tide.rawMllw };
+    // If marine data exists, adjust astronomical harmonic curve with marine trend
+    const marIdx = Math.min(
+      (marineJson?.hourly?.sea_level_height_msl?.length ?? 0) - 1,
+      Math.max(0, currentHourIdx + Math.floor(m / 60))
+    );
+    const marOffset = marineJson?.hourly?.sea_level_height_msl?.[marIdx] !== undefined
+      ? marineJson.hourly.sea_level_height_msl[marIdx] - tide.tideMsl
+      : 0;
+    const adjustedMllw = tide.rawMllw + marOffset;
+
+    if (adjustedMllw > todayHighTideRec.raw) {
+      todayHighTideRec = { date: t, height: Number((adjustedMllw).toFixed(2)), raw: adjustedMllw };
     }
-    if (tide.rawMllw < todayLowTideRec.raw) {
-      todayLowTideRec = { date: t, height: tide.tideMllw, raw: tide.rawMllw };
+    if (adjustedMllw < todayLowTideRec.raw) {
+      todayLowTideRec = { date: t, height: Number((adjustedMllw).toFixed(2)), raw: adjustedMllw };
     }
   }
 
-  // Standard hydrographic convention (NAMRIA / Tide tables): round published extrema to nearest 5 minutes
+  // Standard hydrographic convention: round published extrema times to nearest 5 minutes
   const roundToNearest5Min = (d: Date) => new Date(Math.round(d.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000));
   const todayHighFormatted = formatPhilippineTime(roundToNearest5Min(todayHighTideRec.date), 'time');
   const todayLowFormatted = formatPhilippineTime(roundToNearest5Min(todayLowTideRec.date), 'time');
 
-  // Chronological next high and low tide calculation (detect first upcoming local peak and trough in 2-minute steps across 36 hours)
+  // Upcoming next high & low tide peaks (detect first upcoming local crest and trough across 36 hours)
   let nextHigh: { time: string; height: number } | null = null;
   let nextLow: { time: string; height: number } | null = null;
   let globalMax = { time: formatPhilippineTime(now, 'time'), height: -99, raw: -99 };
@@ -660,7 +691,7 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
       globalMin = { time: formatPhilippineTime(testTime, 'time'), height: tide.tideMllw, raw: currRaw };
     }
 
-    // Detect first upcoming significant crest (local peak with height >= 0.80m MLLW)
+    // Detect first upcoming local peak (height >= 0.80m MLLW)
     if (!nextHigh && step >= 2 && prevRaw >= 0.80) {
       if (prevRaw >= prevPrevRaw && prevRaw >= currRaw) {
         const peakTime = new Date(now.getTime() + (step - 1) * 2 * 60 * 1000);
@@ -671,7 +702,7 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
       }
     }
 
-    // Detect first upcoming significant trough (local minimum with height <= 0.35m MLLW)
+    // Detect first upcoming local trough (height <= 0.35m MLLW)
     if (!nextLow && step >= 2 && prevRaw <= 0.35) {
       if (prevRaw <= prevPrevRaw && prevRaw <= currRaw) {
         const troughTime = new Date(now.getTime() + (step - 1) * 2 * 60 * 1000);
@@ -731,10 +762,9 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
   };
 
   // Soil saturation
-  const hData = noveletaJson.hourly || {};
-  const sTop = hData.soil_moisture_0_to_1cm?.[0] ?? 0.32;
-  const sMid = hData.soil_moisture_1_to_3cm?.[0] ?? 0.35;
-  const sDeep = hData.soil_moisture_3_to_9cm?.[0] ?? 0.38;
+  const sTop = hData.soil_moisture_0_to_1cm?.[currentHourIdx] ?? 0.32;
+  const sMid = hData.soil_moisture_1_to_3cm?.[currentHourIdx] ?? 0.35;
+  const sDeep = hData.soil_moisture_3_to_9cm?.[currentHourIdx] ?? 0.38;
 
   // Max field capacity volumetric water content for clay loam (typical Noveleta/Kawit alluvium) is ~0.48 m³/m³
   const topPct = Math.min(100, Math.round((sTop / 0.48) * 100));
@@ -771,36 +801,6 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
     soilTypeDescription: 'Alluvial Marine Clay Loam (Low Permeability)',
   };
 
-  // Find current hour index in times array for Asia/Manila (Philippine Standard Time)
-  const times = hData.time || [];
-  let currentHourIdx = 0;
-  if (times.length > 0) {
-    const curHourStr = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Manila',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      hourCycle: 'h23',
-    }).format(now).replace(', ', 'T');
-
-    const foundIdx = times.findIndex((t: string) => t.startsWith(curHourStr));
-    if (foundIdx !== -1) {
-      currentHourIdx = foundIdx;
-    } else {
-      const nowMs = now.getTime();
-      let minDiff = Infinity;
-      times.forEach((t: string, idx: number) => {
-        const ms = new Date(t.includes('+') || t.endsWith('Z') ? t : `${t}:00+08:00`).getTime();
-        const diff = Math.abs(ms - nowMs);
-        if (diff < minDiff) {
-          minDiff = diff;
-          currentHourIdx = idx;
-        }
-      });
-    }
-  }
-
   // Upland Watershed data (Tagaytay / Silang ridge)
   const upCur = uplandJson.current || {};
   const upHourly = uplandJson.hourly || {};
@@ -813,8 +813,7 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
     uplandRain6h = simulation.uplandRainfallMm;
   }
 
-  // Discharge model: Q = C * I * A
-  // Ylang-Ylang basin area ~65 km²
+  // Discharge model: Q = C * I * A (Ylang-Ylang basin area ~65 km²)
   const basinAreaKm2 = 65;
   const effectiveRainMm = uplandRainRate * (aggregateSat / 100);
   const discharge = Number(((effectiveRainMm * basinAreaKm2 * 0.278) + 8.5).toFixed(1)); // Baseflow 8.5 m³/s
@@ -897,7 +896,7 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
 
     const ptRisk = calculateCompoundRiskScore({
       localRainRate: ptRain,
-      localRain6h: ptRain * 3, // moving average
+      localRain6h: ptRain * 3,
       uplandRainRate: ptUpRain,
       uplandRain6h: ptUpRain * 3,
       soilSaturationPercent: soilAccum,
@@ -969,7 +968,6 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
 
   // Calculate historical benchmark similarities
   const historicalBenchmarks = HISTORICAL_BENCHMARKS.map((item) => {
-    // Distance metric based on rainfall, soil sat, and tide
     const diffRain = Math.abs(item.rainfall24hMm - (localRain6h * 4));
     const diffSoil = Math.abs(item.soilSaturationPercent - aggregateSat);
     const diffTide = Math.abs(item.peakTideMeters - totalWaterLevelMllw);
@@ -980,7 +978,6 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
 
   // Calculate barangay-level vulnerabilities
   const barangayStatuses: BarangayFloodStatus[] = NOVELETA_BARANGAYS.map((b) => {
-    // Vulnerability factors: lower elevation = higher depth
     const elevationPenalty = Math.max(0, (2.8 - b.elevationMeters) * 16);
     let zoneBonus = 0;
     if (b.zone === 'Coastal / Estuary') zoneBonus = totalWaterLevelMsl > 0.3 ? 20 : 5;
@@ -994,7 +991,6 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
     else if (bScore >= 25) bLevel = 'moderate';
     else if (bScore >= 12) bLevel = 'low';
 
-    // Water depth in meters (0 to 2.5m)
     let depth = 0;
     if (bScore > 75) depth = Number(((bScore - 70) * 0.05 + 0.8).toFixed(2));
     else if (bScore > 50) depth = Number(((bScore - 45) * 0.02 + 0.25).toFixed(2));

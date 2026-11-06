@@ -389,23 +389,48 @@ export default function App() {
             </section>
           </>
         )}
+        {/* Official Safety & Emergency Disclaimer Banner */}
+        <section className="pt-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-950/40 border border-amber-800/80 text-amber-200 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Life-Safety & Official Evacuation Notice</span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-100/90">
+              <strong>IMPORTANT DISCLAIMER:</strong> Do not rely on this app solely for life-safety or evacuation decisions. This platform provides automated predictive modeling and hydro-informatics for situational awareness. Always follow official weather warnings, flood advisories, and emergency evacuation orders issued by PAGASA, NDRRMC, Cavite PDRRMO, and local Noveleta MDRRMO (Municipal Disaster Risk Reduction and Management Office).
+            </p>
+            <div className="pt-1 flex flex-wrap items-center gap-3 text-[11px] font-mono text-amber-300/80">
+              <span>Noveleta MDRRMO Hotline: (046) 438-1207 / 0919-063-2281</span>
+              <span>·</span>
+              <span>Cavite PDRRMO: (046) 419-0742</span>
+              <span>·</span>
+              <span>Philippine Red Cross: 143</span>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-800 bg-slate-950 py-6 sm:py-8 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 pb-20 sm:pb-24 md:pb-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-center sm:text-left">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-300">Noveleta FloodWatch</span>
-            <span aria-hidden="true">·</span>
-            <span>Cavite Hydro-Informatics</span>
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-300">Noveleta FloodWatch</span>
+              <span aria-hidden="true">·</span>
+              <span>Cavite Hydro-Informatics & Coastal Predictive Engine</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-4 text-slate-400 text-[11px] sm:text-xs">
+              <span>Open-Meteo Weather & Marine API</span>
+              <span aria-hidden="true">·</span>
+              <span>NAMRIA Manila Bay Tidal Datum (MLLW)</span>
+              <span aria-hidden="true">·</span>
+              <span>PST (UTC+8)</span>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-4 text-slate-400 text-[11px] sm:text-xs">
-            <span>Open-Meteo High-Res API</span>
-            <span aria-hidden="true">·</span>
-            <span>NAMRIA Manila Bay Tidal Datum</span>
-            <span aria-hidden="true">·</span>
-            <span>PAGASA Flood Benchmarks</span>
+          <div className="pt-3 border-t border-slate-900 text-[11px] text-slate-500 text-center leading-relaxed">
+            Do not rely on this app solely for life-safety decisions. Always follow official weather warnings, flood advisories, and emergency evacuation instructions from PAGASA, NDRRMC, Cavite PDRRMO, and local Noveleta MDRRMO.
           </div>
         </div>
       </footer>
