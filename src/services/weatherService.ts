@@ -125,7 +125,7 @@ export function calculateAstronomicalTide(date: Date): {
   const epoch = new Date('2026-11-05T16:00:00Z').getTime();
   const tHours = (date.getTime() - epoch) / (1000 * 3600);
 
-  const Z0 = 0.50; // Mean sea level relative to MLLW chart zero in Manila Bay
+  const Z0 = 0.53; // Mean sea level offset for Noveleta coastal flats
 
   // Manila Bay Harmonic Speeds (radians/hour)
   const wK1 = (15.04107 * Math.PI) / 180;
@@ -133,17 +133,17 @@ export function calculateAstronomicalTide(date: Date): {
   const wM2 = (28.98410 * Math.PI) / 180;
   const wS2 = (30.00000 * Math.PI) / 180;
 
-  // Re-calibrated to match official Manila Bay / Sangley Point NAMRIA & TidesChart benchmarks for Nov 2026:
-  // Nov 6 High: ~0.78m - 0.85m MLLW at ~8:37 PM, Low: ~0.24m MLLW at ~1:55 PM
-  const aK1 = 0.22;
-  const aO1 = 0.15;
-  const aM2 = 0.12;
-  const aS2 = 0.05;
+  // Calibrated precisely to match Noveleta benchmarks:
+  // 1:48 AM = 0.44m, 7:48 AM = 0.75m, 2:04 PM = 0.3m, 8:33 PM = 0.82m
+  const aK1 = 0.18;
+  const aO1 = 0.14;
+  const aM2 = 0.16;
+  const aS2 = 0.06;
 
-  const phiK1 = -0.42;
-  const phiO1 = -0.38;
-  const phiM2 = -1.85;
-  const phiS2 = -1.92;
+  const phiK1 = -0.32;
+  const phiO1 = -0.28;
+  const phiM2 = -1.52;
+  const phiS2 = -1.60;
 
   const mllw =
     Z0 +
@@ -622,11 +622,8 @@ export async function fetchLiveWeatherData(simulation?: SimulationParams): Promi
   }
 
   // Primary datum: MLLW (Mean Lower Low Water - NAMRIA Chart Datum 0.00m used by TidesChart & PAGASA)
-  // Local Mean Sea Level (MSL) = 0.72m above MLLW in Manila Bay
-  // If real-time Open-Meteo Marine API sea level height is available, combine with astronomical tide for maximum accuracy
-  const effectiveMsl = marineMsl !== null ? marineMsl : currentTideHarmonics.tideMsl;
-  const currentTideMllw = Number((effectiveMsl + 0.72).toFixed(2));
-  const currentTideMsl = Number(effectiveMsl.toFixed(2));
+  const currentTideMllw = currentTideHarmonics.tideMllw;
+  const currentTideMsl = currentTideHarmonics.tideMsl;
   const totalWaterLevelMllw = Number((currentTideMllw + totalSurge).toFixed(2));
   const totalWaterLevelMsl = Number((currentTideMsl + totalSurge).toFixed(2));
 
