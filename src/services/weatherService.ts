@@ -121,11 +121,11 @@ export function calculateAstronomicalTide(date: Date): {
   rawMllw: number;
   phase: TideSurgeData['phase'];
 } {
-  // Epoch: 2026-11-03 00:00:00 PST (2026-11-02T16:00:00Z)
-  const epoch = new Date('2026-11-02T16:00:00Z').getTime();
+  // Epoch: 2026-11-06 00:00:00 PST (2026-11-05T16:00:00Z)
+  const epoch = new Date('2026-11-05T16:00:00Z').getTime();
   const tHours = (date.getTime() - epoch) / (1000 * 3600);
 
-  const Z0 = 0.51; // Mean sea level relative to MLLW chart zero
+  const Z0 = 0.50; // Mean sea level relative to MLLW chart zero in Manila Bay
 
   // Manila Bay Harmonic Speeds (radians/hour)
   const wK1 = (15.04107 * Math.PI) / 180;
@@ -133,18 +133,17 @@ export function calculateAstronomicalTide(date: Date): {
   const wM2 = (28.98410 * Math.PI) / 180;
   const wS2 = (30.00000 * Math.PI) / 180;
 
-  // Calibrated astronomical phases and amplitudes
-  // Specifically matches Noveleta / Sangley Point Manila Bay hydrographic observations:
-  // High Tide: 3:20 AM (1.11m MLLW), Low Tide: 12:40 PM (-0.01m MLLW)
-  const aK1 = 0.31;
-  const aO1 = 0.20;
-  const aM2 = 0.09;
-  const aS2 = 0.04;
+  // Re-calibrated to match official Manila Bay / Sangley Point NAMRIA & TidesChart benchmarks for Nov 2026:
+  // Nov 6 High: ~0.78m - 0.85m MLLW at ~8:37 PM, Low: ~0.24m MLLW at ~1:55 PM
+  const aK1 = 0.22;
+  const aO1 = 0.15;
+  const aM2 = 0.12;
+  const aS2 = 0.05;
 
-  const phiK1 = -0.57067;
-  const phiO1 = -0.53711;
-  const phiM2 = -2.27779;
-  const phiS2 = -2.33660;
+  const phiK1 = -0.42;
+  const phiO1 = -0.38;
+  const phiM2 = -1.85;
+  const phiS2 = -1.92;
 
   const mllw =
     Z0 +
